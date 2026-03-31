@@ -16,14 +16,21 @@ class DashboardScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.neutral,
       appBar: AppBar(
-        title: const Text('PawSense', style: AppTextStyles.headline),
+        backgroundColor: AppColors.neutral,
+        title: Text(
+          'PawSense',
+          style: AppTextStyles.headline.copyWith(
+            color: AppColors.primary,
+            fontSize: 22,
+          ),
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications_outlined),
+            icon: const Icon(Icons.notifications_outlined, size: 22),
             onPressed: () {},
           ),
           IconButton(
-            icon: const Icon(Icons.info_outline),
+            icon: const Icon(Icons.info_outline, size: 22),
             onPressed: () {},
           ),
         ],
@@ -34,12 +41,12 @@ class DashboardScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 8),
+                const SizedBox(height: 4),
 
                 // Sistem Modu
                 const SystemModeCard(),
 
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
 
                 // Aktif İhlal Kontrolü başlığı
                 Padding(
@@ -49,21 +56,21 @@ class DashboardScreen extends StatelessWidget {
                       Text(
                         'Aktif İhlal Kontrolü',
                         style: AppTextStyles.headlineSmall.copyWith(
-                          fontSize: 18,
+                          fontSize: 17,
                         ),
                       ),
                       const SizedBox(width: 8),
                       const StatusBadge(
                         label: 'CANLI',
-                        color: AppColors.danger,
-                        backgroundColor: AppColors.badgeDanger,
+                        color: Colors.white,
+                        backgroundColor: AppColors.danger,
                         fontSize: 10,
                       ),
                     ],
                   ),
                 ),
 
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
 
                 // Canlı kedi listesi
                 if (dashboard.liveCats.isEmpty)
@@ -78,7 +85,7 @@ class DashboardScreen extends StatelessWidget {
                     );
                   }),
 
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
 
                 // Hızlı işlem kartları
                 Padding(

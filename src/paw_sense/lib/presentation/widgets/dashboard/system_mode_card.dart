@@ -58,26 +58,19 @@ class SystemModeCard extends StatelessWidget {
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 7,
+                          horizontal: 16,
+                          vertical: 8,
                         ),
                         decoration: BoxDecoration(
-                          // Tüm badge'ler her zaman kendi renginde dolgulu
                           color: isActive
                               ? mode.color
-                              : mode.color.withValues(alpha: 0.15),
+                              : mode.color.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(20),
-                          border: isActive
-                              ? Border.all(
-                                  color: mode.color.withValues(alpha: 0.5),
-                                  width: 1.5,
-                                )
-                              : null,
                           boxShadow: isActive
                               ? [
                                   BoxShadow(
                                     color: mode.color.withValues(alpha: 0.3),
-                                    blurRadius: 6,
+                                    blurRadius: 8,
                                     offset: const Offset(0, 2),
                                   ),
                                 ]

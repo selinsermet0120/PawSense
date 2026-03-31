@@ -31,12 +31,29 @@ class ViolationRecordModel extends ViolationRecord {
       id: map['id'] as String,
       catId: map['cat_id'] as String,
       roomUnitId: map['room_unit_id'] as String,
-      zoneName: map['zone_name'] as String,
+      zoneName: (map['zone'] as String?) ?? '',
       rssiValue: map['rssi_value'] as int,
-      status: CatStatus.values[map['status'] as int],
-      timestamp: DateTime.fromMillisecondsSinceEpoch(map['timestamp'] as int),
-      durationSeconds: map['duration_seconds'] as int,
+      status: _parseSeverity(map['severity']),
+      timestamp: DateTime.parse(map['created_at'] as String),
+      durationSeconds: (map['deterrent_duration_sec'] as int?) ?? 0,
     );
+  }
+
+  static CatStatus _parseSeverity(dynamic value) {
+    if (value is int) return CatStatus.values[value];
+    if (value is String) {
+      switch (value.toUpperCase()) {
+        case 'DANGER':
+        case 'İHLAL':
+          return CatStatus.ihlal;
+        case 'WARNING':
+        case 'UYARI':
+          return CatStatus.uyari;
+        default:
+          return CatStatus.guvenli;
+      }
+    }
+    return CatStatus.guvenli;
   }
 
   Map<String, dynamic> toMap() {
@@ -44,11 +61,9 @@ class ViolationRecordModel extends ViolationRecord {
       'id': id,
       'cat_id': catId,
       'room_unit_id': roomUnitId,
-      'zone_name': zoneName,
+      'zone': zoneName,
       'rssi_value': rssiValue,
-      'status': status.index,
-      'timestamp': timestamp.millisecondsSinceEpoch,
-      'duration_seconds': durationSeconds,
+      'severity': status.index,
     };
   }
 }

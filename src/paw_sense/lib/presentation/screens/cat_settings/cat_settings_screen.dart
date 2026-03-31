@@ -5,8 +5,11 @@ import '../../../core/constants/app_text_styles.dart';
 import '../../../core/enums/deterrent_sound.dart';
 import '../../../domain/entities/cat_profile.dart';
 import '../../providers/cat_provider.dart';
+import '../../providers/violation_provider.dart';
 import '../../widgets/common/cat_avatar.dart';
 import '../../widgets/cat_settings/beacon_section.dart';
+import '../../widgets/cat_settings/behavior_analysis_section.dart';
+import '../../widgets/cat_settings/sensitivity_section.dart';
 import '../../widgets/cat_settings/sound_library_section.dart';
 
 class CatSettingsScreen extends StatefulWidget {
@@ -24,54 +27,114 @@ class _CatSettingsScreenState extends State<CatSettingsScreen> {
     return Scaffold(
       backgroundColor: AppColors.neutral,
       appBar: AppBar(
-        title: const Text('Kedilerim', style: AppTextStyles.headline),
+        backgroundColor: AppColors.neutral,
+        title: Text(
+          'Kedilerim',
+          style: AppTextStyles.headline.copyWith(
+            color: AppColors.primary,
+            fontSize: 22,
+          ),
+        ),
       ),
-      body: Consumer<CatProvider>(
-        builder: (context, catProvider, _) {
+      body: Consumer2<CatProvider, ViolationProvider>(
+        builder: (context, catProvider, violationProvider, _) {
+          if (catProvider.isLoading) {
+            return const Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            );
+          }
+
           if (catProvider.cats.isEmpty) {
             return _buildEmptyState(context, catProvider);
           }
 
+          // Index sınır kontrolü
+          if (_selectedCatIndex >= catProvider.cats.length) {
+            _selectedCatIndex = 0;
+          }
+
           final cat = catProvider.cats[_selectedCatIndex];
+
+          // Seçili kedinin ihlal kayıtları (filtreden bağımsız tüm veriler)
+          final catViolations = violationProvider.allViolations
+              .where((v) => v.catId == cat.id)
+              .toList();
 
           return SingleChildScrollView(
             child: Column(
               children: [
-                const SizedBox(height: 8),
+                const SizedBox(height: 4),
 
-                // Kedi seçim çipsleri
-                if (catProvider.cats.length > 1)
-                  SizedBox(
-                    height: 40,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: catProvider.cats.length,
-                      itemBuilder: (context, index) {
-                        final isSelected = _selectedCatIndex == index;
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: ChoiceChip(
-                            label: Text(catProvider.cats[index].name),
-                            selected: isSelected,
-                            selectedColor: AppColors.primary,
-                            labelStyle: TextStyle(
-                              color:
-                                  isSelected ? Colors.white : AppColors.textPrimary,
-                              fontWeight: FontWeight.w600,
+                // Kedi seçim çipsleri (her zaman göster)
+                SizedBox(
+                  height: 42,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: catProvider.cats.length,
+                    itemBuilder: (context, index) {
+                      final isSelected = _selectedCatIndex == index;
+                      final c = catProvider.cats[index];
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: GestureDetector(
+                          onTap: () =>
+                              setState(() => _selectedCatIndex = index),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? AppColors.primary
+                                  : Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: isSelected
+                                    ? AppColors.primary
+                                    : AppColors.textSecondary
+                                        .withValues(alpha: 0.3),
+                              ),
+                              boxShadow: isSelected
+                                  ? [
+                                      BoxShadow(
+                                        color: AppColors.primary
+                                            .withValues(alpha: 0.3),
+                                        blurRadius: 6,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ]
+                                  : null,
                             ),
-                            onSelected: (_) {
-                              setState(() => _selectedCatIndex = index);
-                            },
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                CatAvatar(
+                                  name: c.name,
+                                  radius: 12,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  c.name,
+                                  style: TextStyle(
+                                    color: isSelected
+                                        ? Colors.white
+                                        : AppColors.textPrimary,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        );
-                      },
-                    ),
+                        ),
+                      );
+                    },
                   ),
+                ),
 
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
 
-                // Profil alanı
+                // Profil alanı — büyük avatar
                 _buildProfileHeader(cat),
 
                 const SizedBox(height: 20),
@@ -79,8 +142,22 @@ class _CatSettingsScreenState extends State<CatSettingsScreen> {
                 // Beacon Tanımlama
                 BeaconSection(
                   beaconId: cat.beaconId.isNotEmpty ? cat.beaconId : null,
-                  onScanPressed: () {
-                    // QR tarama işlevi
+                  onBeaconIdChanged: (newId) {
+                    final updated = cat.copyWith(beaconId: newId);
+                    catProvider.cats[_selectedCatIndex] = updated;
+                    setState(() {});
+                  },
+                ),
+
+                const SizedBox(height: 12),
+
+                // Hassasiyet Ayarı
+                SensitivitySection(
+                  rssiThreshold: cat.rssiThreshold,
+                  onChanged: (value) {
+                    final updated = cat.copyWith(rssiThreshold: value);
+                    catProvider.cats[_selectedCatIndex] = updated;
+                    setState(() {});
                   },
                 ),
 
@@ -92,9 +169,15 @@ class _CatSettingsScreenState extends State<CatSettingsScreen> {
                   onSoundSelected: (sound) {
                     final updated = cat.copyWith(deterrentSound: sound);
                     catProvider.cats[_selectedCatIndex] = updated;
-                    // Veritabanına da kaydet
                     setState(() {});
                   },
+                ),
+
+                const SizedBox(height: 12),
+
+                // Davranış Analizi
+                BehaviorAnalysisSection(
+                  violations: catViolations,
                 ),
 
                 const SizedBox(height: 24),
@@ -109,26 +192,27 @@ class _CatSettingsScreenState extends State<CatSettingsScreen> {
   Widget _buildProfileHeader(CatProfile cat) {
     return Column(
       children: [
+        // Büyük daire avatar
         Container(
-          padding: const EdgeInsets.all(6),
+          padding: const EdgeInsets.all(5),
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             border: Border.all(
-              color: AppColors.primary.withValues(alpha: 0.3),
+              color: AppColors.primary.withValues(alpha: 0.25),
               width: 3,
             ),
           ),
           child: CatAvatar(
             name: cat.name,
             imagePath: cat.avatarPath,
-            radius: 48,
+            radius: 52,
             backgroundColor: AppColors.secondary.withValues(alpha: 0.3),
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 14),
         Text(
           cat.name,
-          style: AppTextStyles.headline,
+          style: AppTextStyles.headline.copyWith(fontSize: 24),
         ),
         const SizedBox(height: 4),
         Text(
@@ -193,7 +277,8 @@ class _CatSettingsScreenState extends State<CatSettingsScreen> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.primary, width: 2),
+              borderSide:
+                  const BorderSide(color: AppColors.primary, width: 2),
             ),
           ),
         ),

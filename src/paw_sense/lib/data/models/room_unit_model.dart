@@ -29,10 +29,10 @@ class RoomUnitModel extends RoomUnit {
       id: map['id'] as String,
       name: map['name'] as String,
       macAddress: map['mac_address'] as String,
-      state: RoomUnitState.values[map['state'] as int],
-      rssiThresholdDanger: map['rssi_threshold_danger'] as int,
-      rssiThresholdNear: map['rssi_threshold_near'] as int,
-      cooldownSeconds: map['cooldown_seconds'] as int,
+      state: RoomUnitState.idle,
+      rssiThresholdDanger: (map['rssi_danger'] as int?) ?? -52,
+      rssiThresholdNear: (map['rssi_near'] as int?) ?? -60,
+      cooldownSeconds: 5,
     );
   }
 
@@ -41,10 +41,8 @@ class RoomUnitModel extends RoomUnit {
       'id': id,
       'name': name,
       'mac_address': macAddress,
-      'state': state.index,
-      'rssi_threshold_danger': rssiThresholdDanger,
-      'rssi_threshold_near': rssiThresholdNear,
-      'cooldown_seconds': cooldownSeconds,
+      'rssi_danger': rssiThresholdDanger,
+      'rssi_near': rssiThresholdNear,
     };
   }
 }

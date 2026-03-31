@@ -27,7 +27,7 @@ class _MobileWrapper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.neutral,
+      backgroundColor: const Color(0xFFEBF0EF),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 420),
