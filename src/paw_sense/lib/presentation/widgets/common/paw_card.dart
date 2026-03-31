@@ -32,12 +32,12 @@ class PawCard extends StatelessWidget {
           border: borderColor != null
               ? Border.all(color: borderColor!, width: borderWidth)
               : null,
-          boxShadow: const [
+          boxShadow: [
             BoxShadow(
-              color: AppColors.cardShadow,
+              color: Colors.black.withValues(alpha: 0.06),
               blurRadius: 12,
-              spreadRadius: 1,
-              offset: Offset(0, 3),
+              spreadRadius: 0,
+              offset: const Offset(0, 3),
             ),
           ],
         ),

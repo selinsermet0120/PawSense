@@ -1,30 +1,31 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../../domain/entities/violation_record.dart';
 import '../../domain/repositories/violation_repository.dart';
-import '../datasources/local/database_helper.dart';
 import '../models/violation_record_model.dart';
 
 class ViolationRepositoryImpl implements ViolationRepository {
-  final DatabaseHelper _databaseHelper;
+  final SupabaseClient _client;
 
-  ViolationRepositoryImpl(this._databaseHelper);
+  ViolationRepositoryImpl(this._client);
 
   @override
   Future<List<ViolationRecord>> getAllViolations() async {
-    final db = await _databaseHelper.database;
-    final maps = await db.query('violations', orderBy: 'timestamp DESC');
-    return maps.map((map) => ViolationRecordModel.fromMap(map)).toList();
+    final data = await _client
+        .from('violations')
+        .select()
+        .order('created_at', ascending: false);
+    return data.map((map) => ViolationRecordModel.fromMap(map)).toList();
   }
 
   @override
   Future<List<ViolationRecord>> getViolationsByCatId(String catId) async {
-    final db = await _databaseHelper.database;
-    final maps = await db.query(
-      'violations',
-      where: 'cat_id = ?',
-      whereArgs: [catId],
-      orderBy: 'timestamp DESC',
-    );
-    return maps.map((map) => ViolationRecordModel.fromMap(map)).toList();
+    final data = await _client
+        .from('violations')
+        .select()
+        .eq('cat_id', catId)
+        .order('created_at', ascending: false);
+    return data.map((map) => ViolationRecordModel.fromMap(map)).toList();
   }
 
   @override
@@ -32,29 +33,23 @@ class ViolationRepositoryImpl implements ViolationRepository {
     DateTime start,
     DateTime end,
   ) async {
-    final db = await _databaseHelper.database;
-    final maps = await db.query(
-      'violations',
-      where: 'timestamp >= ? AND timestamp <= ?',
-      whereArgs: [
-        start.millisecondsSinceEpoch,
-        end.millisecondsSinceEpoch,
-      ],
-      orderBy: 'timestamp DESC',
-    );
-    return maps.map((map) => ViolationRecordModel.fromMap(map)).toList();
+    final data = await _client
+        .from('violations')
+        .select()
+        .gte('created_at', start.toIso8601String())
+        .lte('created_at', end.toIso8601String())
+        .order('created_at', ascending: false);
+    return data.map((map) => ViolationRecordModel.fromMap(map)).toList();
   }
 
   @override
   Future<void> addViolation(ViolationRecord record) async {
-    final db = await _databaseHelper.database;
     final model = ViolationRecordModel.fromEntity(record);
-    await db.insert('violations', model.toMap());
+    await _client.from('violations').insert(model.toMap());
   }
 
   @override
   Future<void> deleteViolation(String id) async {
-    final db = await _databaseHelper.database;
-    await db.delete('violations', where: 'id = ?', whereArgs: [id]);
+    await _client.from('violations').delete().eq('id', id);
   }
 }

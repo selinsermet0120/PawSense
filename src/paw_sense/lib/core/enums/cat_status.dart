@@ -17,7 +17,13 @@ enum CatStatus {
     }
   }
 
+  /// Badge metin rengi — dolgulu badge'lerde beyaz
   Color get color {
+    return Colors.white;
+  }
+
+  /// Badge arka plan rengi — dolgulu (filled) renk
+  Color get backgroundColor {
     switch (this) {
       case CatStatus.guvenli:
         return AppColors.safe;
@@ -28,14 +34,15 @@ enum CatStatus {
     }
   }
 
-  Color get backgroundColor {
+  /// Kart border / ince vurgu gibi yerlerde kullanılacak ham durum rengi
+  Color get statusColor {
     switch (this) {
       case CatStatus.guvenli:
-        return AppColors.badgeSafe;
+        return AppColors.safe;
       case CatStatus.uyari:
-        return AppColors.badgeWarning;
+        return AppColors.warning;
       case CatStatus.ihlal:
-        return AppColors.badgeDanger;
+        return AppColors.danger;
     }
   }
 }

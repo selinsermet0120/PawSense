@@ -7,6 +7,7 @@ class CatProfile {
   final String beaconId;
   final DeterrentSound deterrentSound;
   final bool isActive;
+  final int rssiThreshold;
 
   const CatProfile({
     required this.id,
@@ -15,6 +16,7 @@ class CatProfile {
     required this.beaconId,
     this.deterrentSound = DeterrentSound.bip,
     this.isActive = true,
+    this.rssiThreshold = -55,
   });
 
   CatProfile copyWith({
@@ -24,6 +26,7 @@ class CatProfile {
     String? beaconId,
     DeterrentSound? deterrentSound,
     bool? isActive,
+    int? rssiThreshold,
   }) {
     return CatProfile(
       id: id ?? this.id,
@@ -32,6 +35,7 @@ class CatProfile {
       beaconId: beaconId ?? this.beaconId,
       deterrentSound: deterrentSound ?? this.deterrentSound,
       isActive: isActive ?? this.isActive,
+      rssiThreshold: rssiThreshold ?? this.rssiThreshold,
     );
   }
 

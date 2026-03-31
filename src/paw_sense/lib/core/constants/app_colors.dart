@@ -7,7 +7,7 @@ class AppColors {
   static const Color primary = Color(0xFF4ECDC4);     // Teal/Mint
   static const Color secondary = Color(0xFFFFCBA4);    // Sıcak şeftali
   static const Color tertiary = Color(0xFFE6E6FA);     // Açık lavanta
-  static const Color neutral = Color(0xFFFFFDD0);      // Krem arka plan
+  static const Color neutral = Color(0xFFF5F9F8);      // Açık mint beyazı arka plan
 
   // Durum renkleri
   static const Color safe = Color(0xFF4CAF50);         // Güvenli — yeşil

@@ -27,53 +27,68 @@ class LiveCatCard extends StatelessWidget {
     return AppColors.safe;
   }
 
-  /// Referanstaki gibi durum bazlı kart arka plan rengi
   Color get _cardBackground {
     switch (status) {
       case CatStatus.ihlal:
-        return const Color(0xFFFFF0F0); // Pembe/kırmızımsı arka plan
+        return const Color(0xFFFFF0F0);
       case CatStatus.uyari:
-        return const Color(0xFFFFFCF0); // Sarımsı arka plan
+        return const Color(0xFFFFFBF0);
       case CatStatus.guvenli:
-        return const Color(0xFFF0FFF4); // Yeşilimsi arka plan
+        return Colors.white;
+    }
+  }
+
+  Color get _borderColor {
+    switch (status) {
+      case CatStatus.ihlal:
+        return AppColors.danger;
+      case CatStatus.uyari:
+        return AppColors.warning.withValues(alpha: 0.4);
+      case CatStatus.guvenli:
+        return Colors.grey.withValues(alpha: 0.12);
+    }
+  }
+
+  double get _borderWidth {
+    switch (status) {
+      case CatStatus.ihlal:
+        return 1.5;
+      case CatStatus.uyari:
+        return 1.0;
+      case CatStatus.guvenli:
+        return 1.0;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final isViolation = status == CatStatus.ihlal;
-
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       decoration: BoxDecoration(
         color: _cardBackground,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isViolation
-              ? AppColors.danger.withValues(alpha: 0.6)
-              : Colors.white.withValues(alpha: 0.8),
-          width: isViolation ? 2 : 1,
-        ),
+        border: Border.all(color: _borderColor, width: _borderWidth),
         boxShadow: [
           BoxShadow(
-            color: isViolation
-                ? AppColors.danger.withValues(alpha: 0.12)
-                : AppColors.cardShadow,
-            blurRadius: 10,
+            color: status == CatStatus.ihlal
+                ? AppColors.danger.withValues(alpha: 0.10)
+                : Colors.black.withValues(alpha: 0.06),
+            blurRadius: 12,
+            spreadRadius: 0,
             offset: const Offset(0, 3),
           ),
         ],
       ),
       child: Row(
         children: [
-          // Sol: Kedi avatarı
+          // Sol: Kedi avatarı (büyütüldü)
           CatAvatar(
             name: catName,
             imagePath: avatarPath,
-            radius: 26,
+            radius: 28,
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 12),
 
           // Orta: İsim ve bölge
           Expanded(
@@ -87,7 +102,7 @@ class LiveCatCard extends StatelessWidget {
                     fontSize: 15,
                   ),
                 ),
-                const SizedBox(height: 3),
+                const SizedBox(height: 4),
                 Row(
                   children: [
                     Icon(
@@ -96,9 +111,12 @@ class LiveCatCard extends StatelessWidget {
                       color: AppColors.textSecondary.withValues(alpha: 0.7),
                     ),
                     const SizedBox(width: 3),
-                    Text(
-                      zoneName,
-                      style: AppTextStyles.bodySmall.copyWith(fontSize: 13),
+                    Flexible(
+                      child: Text(
+                        zoneName,
+                        style: AppTextStyles.bodySmall.copyWith(fontSize: 12),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ],
                 ),
@@ -106,23 +124,27 @@ class LiveCatCard extends StatelessWidget {
             ),
           ),
 
-          // Sağ: RSSI + durum badge
+          const SizedBox(width: 10),
+
+          // Sağ: RSSI badge + durum badge (ayrı ayrı)
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              // RSSI sinyal gösterimi
+              // RSSI badge
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
                   color: _rssiColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
                       Icons.signal_cellular_alt,
-                      size: 14,
+                      size: 12,
                       color: _rssiColor,
                     ),
                     const SizedBox(width: 4),
@@ -137,8 +159,10 @@ class LiveCatCard extends StatelessWidget {
                   ],
                 ),
               ),
+
               const SizedBox(height: 8),
-              // Durum badge
+
+              // Durum badge (dolgulu)
               StatusBadge(
                 label: status.label,
                 color: status.color,
