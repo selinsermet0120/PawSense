@@ -10,8 +10,10 @@ import 'data/repositories/violation_repository_impl.dart';
 import 'domain/usecases/get_cats.dart';
 import 'domain/usecases/add_cat.dart';
 import 'domain/usecases/get_violations.dart';
+import 'presentation/providers/auth_provider.dart';
 import 'presentation/providers/dashboard_provider.dart';
 import 'presentation/providers/cat_provider.dart';
+import 'presentation/providers/settings_provider.dart';
 import 'presentation/providers/violation_provider.dart';
 
 Future<void> main() async {
@@ -20,6 +22,10 @@ Future<void> main() async {
 
   // Supabase başlat
   await SupabaseDatasource.initialize();
+
+  // Settings'i yükle
+  final settingsProvider = SettingsProvider();
+  await settingsProvider.load();
 
   // Supabase repository'ler
   final client = SupabaseDatasource.client;
@@ -34,9 +40,16 @@ Future<void> main() async {
   // Realtime servisi
   final realtimeService = SupabaseRealtimeService(client);
 
-  // Provider'ları oluştur
+  // Auth provider
+  final authProvider = AuthProvider(client);
+
+  // Provider'lar
   final dashboardProvider = DashboardProvider(client: client);
-  final catProvider = CatProvider(getCats: getCats, addCat: addCat);
+  final catProvider = CatProvider(
+    getCats: getCats,
+    addCat: addCat,
+    catRepository: catRepository,
+  );
   final violationProvider = ViolationProvider(getViolations: getViolations);
 
   // Kedi listesi değiştiğinde dashboard'un catMap'ini güncelle
@@ -44,26 +57,34 @@ Future<void> main() async {
     dashboardProvider.updateCatMap(cats);
   };
 
-  // İlk verileri yükle
-  await catProvider.loadCats();
-  await dashboardProvider.loadCats();
-  dashboardProvider.loadLiveCats();
-  dashboardProvider.loadSystemMode();
-  violationProvider.loadViolations();
+  // İlk verileri yükle (kullanıcı oturum açıksa)
+  if (authProvider.isLoggedIn) {
+    await catProvider.loadCats();
+    await dashboardProvider.loadCats();
+    dashboardProvider.loadLiveCats();
+    dashboardProvider.loadSystemMode();
+    violationProvider.loadViolations();
 
-  // Realtime aboneliklerini başlat
-  catProvider.subscribeToRealtime(realtimeService);
-  dashboardProvider.subscribeToRealtime(realtimeService);
-  violationProvider.subscribeToRealtime(realtimeService);
+    catProvider.subscribeToRealtime(realtimeService);
+    dashboardProvider.subscribeToRealtime(realtimeService);
+    violationProvider.subscribeToRealtime(realtimeService);
+  }
 
   runApp(
     MultiProvider(
       providers: [
+        ChangeNotifierProvider.value(value: settingsProvider),
+        ChangeNotifierProvider.value(value: authProvider),
         ChangeNotifierProvider.value(value: dashboardProvider),
         ChangeNotifierProvider.value(value: catProvider),
         ChangeNotifierProvider.value(value: violationProvider),
       ],
-      child: const PawSenseApp(),
+      child: PawSenseApp(
+        realtimeService: realtimeService,
+        dashboardProvider: dashboardProvider,
+        catProvider: catProvider,
+        violationProvider: violationProvider,
+      ),
     ),
   );
 }
