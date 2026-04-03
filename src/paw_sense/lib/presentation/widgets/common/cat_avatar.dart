@@ -15,11 +15,10 @@ class CatAvatar extends StatelessWidget {
     this.backgroundColor,
   });
 
-  // Her kediye özel renk ve emoji
   static const _catProfiles = {
-    'Luna': {'emoji': '\u{1F431}', 'color': 0xFFFFCDD2},    // Kedi yüzü, pembe
-    'Oliver': {'emoji': '\u{1F63A}', 'color': 0xFFFFE0B2},  // Gülen kedi, turuncu
-    'Mochi': {'emoji': '\u{1F638}', 'color': 0xFFC8E6C9},   // Sırıtan kedi, yeşil
+    'Luna': {'emoji': '\u{1F431}', 'color': 0xFFFFCDD2},
+    'Oliver': {'emoji': '\u{1F63A}', 'color': 0xFFFFE0B2},
+    'Mochi': {'emoji': '\u{1F638}', 'color': 0xFFC8E6C9},
   };
 
   @override
@@ -29,16 +28,46 @@ class CatAvatar extends StatelessWidget {
         (profile != null ? Color(profile['color'] as int) : AppColors.tertiary);
     final emoji = profile?['emoji'] as String? ?? '\u{1F431}';
 
+    Widget child;
+    if (imagePath != null && imagePath!.isNotEmpty) {
+      if (imagePath!.startsWith('http')) {
+        child = ClipOval(
+          child: Image.network(
+            imagePath!,
+            fit: BoxFit.cover,
+            width: radius * 2,
+            height: radius * 2,
+            errorBuilder: (context, error, stackTrace) => Center(
+              child: Text(emoji, style: TextStyle(fontSize: radius * 0.85)),
+            ),
+          ),
+        );
+      } else {
+        child = ClipOval(
+          child: Image.asset(
+            imagePath!,
+            fit: BoxFit.cover,
+            width: radius * 2,
+            height: radius * 2,
+            errorBuilder: (context, error, stackTrace) => Center(
+              child: Text(emoji, style: TextStyle(fontSize: radius * 0.85)),
+            ),
+          ),
+        );
+      }
+    } else {
+      child = Center(
+        child: Text(emoji, style: TextStyle(fontSize: radius * 0.85)),
+      );
+    }
+
     return Container(
       width: radius * 2,
       height: radius * 2,
       decoration: BoxDecoration(
         color: bgColor,
         shape: BoxShape.circle,
-        border: Border.all(
-          color: Colors.white,
-          width: 2,
-        ),
+        border: Border.all(color: Colors.white, width: 2),
         boxShadow: [
           BoxShadow(
             color: bgColor.withValues(alpha: 0.4),
@@ -47,21 +76,7 @@ class CatAvatar extends StatelessWidget {
           ),
         ],
       ),
-      child: imagePath != null && imagePath!.isNotEmpty
-          ? ClipOval(
-              child: Image.asset(
-                imagePath!,
-                fit: BoxFit.cover,
-                width: radius * 2,
-                height: radius * 2,
-              ),
-            )
-          : Center(
-              child: Text(
-                emoji,
-                style: TextStyle(fontSize: radius * 0.85),
-              ),
-            ),
+      child: child,
     );
   }
 }

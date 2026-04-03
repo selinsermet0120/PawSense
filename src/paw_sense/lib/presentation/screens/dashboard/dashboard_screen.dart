@@ -9,7 +9,14 @@ import '../../widgets/dashboard/live_cat_card.dart';
 import '../../widgets/dashboard/quick_action_card.dart';
 
 class DashboardScreen extends StatelessWidget {
-  const DashboardScreen({super.key});
+  final VoidCallback? onNavigateToHistory;
+  final VoidCallback? onOpenSettings;
+
+  const DashboardScreen({
+    super.key,
+    this.onNavigateToHistory,
+    this.onOpenSettings,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -55,9 +62,7 @@ class DashboardScreen extends StatelessWidget {
                     children: [
                       Text(
                         'Aktif İhlal Kontrolü',
-                        style: AppTextStyles.headlineSmall.copyWith(
-                          fontSize: 17,
-                        ),
+                        style: AppTextStyles.headlineSmall.copyWith(fontSize: 17),
                       ),
                       const SizedBox(width: 8),
                       const StatusBadge(
@@ -97,14 +102,14 @@ class DashboardScreen extends StatelessWidget {
                         title: 'İhlal Kaydı',
                         subtitle: 'Son 24 saat analizi',
                         iconBackgroundColor: AppColors.secondary,
-                        onTap: () {},
+                        onTap: onNavigateToHistory,
                       ),
                       QuickActionCard(
                         icon: Icons.tune,
                         title: 'Ayarlar',
                         subtitle: 'Hassasiyet modları',
                         iconBackgroundColor: AppColors.tertiary,
-                        onTap: () {},
+                        onTap: onOpenSettings,
                       ),
                     ],
                   ),
@@ -133,9 +138,7 @@ class DashboardScreen extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               'Henüz kedi eklenmedi',
-              style: AppTextStyles.body.copyWith(
-                color: AppColors.textSecondary,
-              ),
+              style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
             ),
             const SizedBox(height: 4),
             const Text(

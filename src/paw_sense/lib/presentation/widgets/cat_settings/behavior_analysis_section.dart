@@ -298,11 +298,11 @@ class BehaviorAnalysisSection extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         SizedBox(
-          height: 80,
+          height: 120,
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: List.generate(7, (i) {
-              final barHeight = maxVal > 0 ? (data[i] / maxVal) * 56 : 0.0;
+              final barHeight = maxVal > 0 ? (data[i] / maxVal) * 80 : 0.0;
               final hasData = data[i] > 0;
               return Expanded(
                 child: Padding(
@@ -321,7 +321,7 @@ class BehaviorAnalysisSection extends StatelessWidget {
                         ),
                       const SizedBox(height: 2),
                       Container(
-                        height: hasData ? barHeight.clamp(4, 56) : 4,
+                        height: hasData ? barHeight.clamp(4, 80) : 4,
                         decoration: BoxDecoration(
                           color: hasData
                               ? AppColors.primary

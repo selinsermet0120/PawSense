@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../domain/entities/cat_profile.dart';
@@ -78,5 +79,18 @@ class CatRepositoryImpl implements CatRepository {
   @override
   Future<void> deleteCat(String id) async {
     await _client.from('cats').delete().eq('id', id);
+  }
+
+  @override
+  Future<String?> uploadCatImage(String catId, Uint8List imageBytes, String fileName) async {
+    try {
+      final path = '$catId/$fileName';
+      await _client.storage
+          .from('cat-images')
+          .uploadBinary(path, imageBytes, fileOptions: const FileOptions(upsert: true));
+      return _client.storage.from('cat-images').getPublicUrl(path);
+    } catch (e) {
+      return null;
+    }
   }
 }
