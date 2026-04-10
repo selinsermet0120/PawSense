@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import '../../core/enums/cat_status.dart';
 import '../../core/enums/room_unit_state.dart' as enums;
 import '../../core/constants/ble_constants.dart';
@@ -31,6 +33,7 @@ class BleProvider extends ChangeNotifier {
   final Map<String, BleDeviceInfo> _detectedDevices = {};
   Timer? _cooldownTimer;
   StreamSubscription? _scanSubscription;
+  StreamSubscription<bool>? _isScanningSubscription;
 
   BleProvider({
     required StartBleScan startBleScan,
@@ -44,9 +47,34 @@ class BleProvider extends ChangeNotifier {
   enums.RoomUnitState get unitState => _unitState;
   List<BleDeviceInfo> get discoveredDevices => _detectedDevices.values.toList();
 
+  /// Bluetooth açık mı kontrol et, kapalıysa açılmasını iste
+  Future<bool> _ensureBluetoothReady() async {
+    var adapterState = await FlutterBluePlus.adapterState.first;
+    if (adapterState != BluetoothAdapterState.on) {
+      if (Platform.isAndroid) {
+        try {
+          await FlutterBluePlus.turnOn();
+          // Bluetooth'un açılmasını bekle (max 5 saniye)
+          adapterState = await FlutterBluePlus.adapterState
+              .firstWhere((s) => s == BluetoothAdapterState.on)
+              .timeout(const Duration(seconds: 5));
+        } catch (_) {
+          return false;
+        }
+      } else {
+        return false;
+      }
+    }
+    return true;
+  }
+
   /// BLE taraması başlat ve bulunan cihazları güncelle
   Future<void> startBeaconScan() async {
     if (kIsWeb) return;
+
+    // Bluetooth hazır mı kontrol et
+    final ready = await _ensureBluetoothReady();
+    if (!ready) return;
 
     _detectedDevices.clear();
     _isScanning = true;
@@ -76,6 +104,16 @@ class BleProvider extends ChangeNotifier {
       notifyListeners();
     });
 
+    // Tarama bittiğinde state'i güncelle
+    _isScanningSubscription?.cancel();
+    _isScanningSubscription = _bleScanner.isScanning.listen((scanning) {
+      if (!scanning && _isScanning) {
+        _isScanning = false;
+        _unitState = enums.RoomUnitState.idle;
+        notifyListeners();
+      }
+    });
+
     // Taramayı başlat
     await _startBleScan();
   }
@@ -96,6 +134,10 @@ class BleProvider extends ChangeNotifier {
   }
 
   Future<void> startScanning() async {
+    if (kIsWeb) return;
+    final ready = await _ensureBluetoothReady();
+    if (!ready) return;
+
     await _startBleScan();
     _isScanning = true;
     _unitState = enums.RoomUnitState.active;
@@ -139,6 +181,7 @@ class BleProvider extends ChangeNotifier {
   void dispose() {
     _cooldownTimer?.cancel();
     _scanSubscription?.cancel();
+    _isScanningSubscription?.cancel();
     super.dispose();
   }
 }
