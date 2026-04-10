@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/enums/cat_status.dart';
 import '../../core/enums/system_mode.dart';
+import '../../data/datasources/local/notification_service.dart';
 import '../../data/datasources/remote/supabase_realtime_service.dart';
 import '../../data/models/violation_record_model.dart';
 import '../../domain/entities/cat_profile.dart';
@@ -24,6 +25,8 @@ class LiveCatData {
 
 class DashboardProvider extends ChangeNotifier {
   final SupabaseClient _client;
+  final NotificationService _notificationService;
+  final bool Function() _isNotificationsEnabled;
 
   SystemMode _currentMode = SystemMode.tarama;
   bool _isLive = true;
@@ -35,7 +38,13 @@ class DashboardProvider extends ChangeNotifier {
   /// Son ihlal verileri (kedi ID → ihlal bilgisi)
   Map<String, LiveCatData> _violationStatus = {};
 
-  DashboardProvider({required SupabaseClient client}) : _client = client;
+  DashboardProvider({
+    required SupabaseClient client,
+    required NotificationService notificationService,
+    required bool Function() isNotificationsEnabled,
+  })  : _client = client,
+        _notificationService = notificationService,
+        _isNotificationsEnabled = isNotificationsEnabled;
 
   SystemMode get currentMode => _currentMode;
   bool get isLive => _isLive;
@@ -230,6 +239,16 @@ class DashboardProvider extends ChangeNotifier {
         rssi: violation.rssiValue,
         status: violation.status,
       );
+
+      // Bildirim gönder (uyarı veya ihlal durumlarında)
+      if (_isNotificationsEnabled() &&
+          violation.status != CatStatus.guvenli) {
+        _notificationService.showViolationNotification(
+          catName: catName,
+          zoneName: violation.zoneName,
+          rssiValue: violation.rssiValue,
+        );
+      }
 
       _rebuildLiveCats();
     } catch (e) {
