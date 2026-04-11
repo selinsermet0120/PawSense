@@ -44,18 +44,6 @@ class _BeaconSectionState extends State<BeaconSection> {
     super.dispose();
   }
 
-<<<<<<< HEAD
-  void _showBleScanDialog() {
-    // Simüle edilmiş BLE tarama sonuçları
-    final mockDevices = [
-      {'id': 'PX-9921-A', 'rssi': -45, 'name': 'PawSense Beacon #1'},
-      {'id': 'PX-8832-B', 'rssi': -62, 'name': 'PawSense Beacon #2'},
-      {'id': 'PX-7743-C', 'rssi': -71, 'name': 'PawSense Beacon #3'},
-    ];
-
-    showModalBottomSheet(
-      context: context,
-=======
   Future<void> _showBleScanDialog() async {
     if (kIsWeb) {
       _showWebNotSupportedDialog();
@@ -84,122 +72,10 @@ class _BeaconSectionState extends State<BeaconSection> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
->>>>>>> 184ff44f924bd06e13a586a090c5eb8a61f31d0c
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) {
-<<<<<<< HEAD
-        return Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(
-                      Icons.bluetooth_searching,
-                      color: AppColors.primary,
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Text('Bulunan Cihazlar',
-                      style: AppTextStyles.headlineSmall),
-                ],
-              ),
-              const SizedBox(height: 16),
-              ...mockDevices.map((device) {
-                final isCurrentDevice = widget.beaconId == device['id'];
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: GestureDetector(
-                    onTap: () {
-                      widget.onBeaconIdChanged?.call(device['id'] as String);
-                      Navigator.pop(ctx);
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: isCurrentDevice
-                            ? AppColors.primary.withValues(alpha: 0.08)
-                            : Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: isCurrentDevice
-                              ? AppColors.primary
-                              : Colors.grey.withValues(alpha: 0.2),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.bluetooth,
-                            color: isCurrentDevice
-                                ? AppColors.primary
-                                : AppColors.textSecondary,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  device['name'] as String,
-                                  style: AppTextStyles.body.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                                Text(
-                                  device['id'] as String,
-                                  style: AppTextStyles.bodySmall
-                                      .copyWith(fontSize: 12),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              '${device['rssi']} dBm',
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                          ),
-                          if (isCurrentDevice) ...[
-                            const SizedBox(width: 8),
-                            const Icon(Icons.check_circle,
-                                color: AppColors.safe, size: 20),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              }),
-              const SizedBox(height: 8),
-            ],
-          ),
-        );
-      },
-=======
         return _BleScanSheet(
           beaconId: widget.beaconId,
           onDeviceSelected: (id) {
@@ -243,7 +119,6 @@ class _BeaconSectionState extends State<BeaconSection> {
           ),
         ],
       ),
->>>>>>> 184ff44f924bd06e13a586a090c5eb8a61f31d0c
     );
   }
 
