@@ -2,6 +2,10 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/enums/cat_status.dart';
 import '../../core/enums/system_mode.dart';
+<<<<<<< HEAD
+=======
+import '../../data/datasources/local/notification_service.dart';
+>>>>>>> 184ff44f924bd06e13a586a090c5eb8a61f31d0c
 import '../../data/datasources/remote/supabase_realtime_service.dart';
 import '../../data/models/violation_record_model.dart';
 import '../../domain/entities/cat_profile.dart';
@@ -24,6 +28,11 @@ class LiveCatData {
 
 class DashboardProvider extends ChangeNotifier {
   final SupabaseClient _client;
+<<<<<<< HEAD
+=======
+  final NotificationService _notificationService;
+  final bool Function() _isNotificationsEnabled;
+>>>>>>> 184ff44f924bd06e13a586a090c5eb8a61f31d0c
 
   SystemMode _currentMode = SystemMode.tarama;
   bool _isLive = true;
@@ -35,7 +44,17 @@ class DashboardProvider extends ChangeNotifier {
   /// Son ihlal verileri (kedi ID → ihlal bilgisi)
   Map<String, LiveCatData> _violationStatus = {};
 
+<<<<<<< HEAD
   DashboardProvider({required SupabaseClient client}) : _client = client;
+=======
+  DashboardProvider({
+    required SupabaseClient client,
+    required NotificationService notificationService,
+    required bool Function() isNotificationsEnabled,
+  })  : _client = client,
+        _notificationService = notificationService,
+        _isNotificationsEnabled = isNotificationsEnabled;
+>>>>>>> 184ff44f924bd06e13a586a090c5eb8a61f31d0c
 
   SystemMode get currentMode => _currentMode;
   bool get isLive => _isLive;
@@ -231,6 +250,19 @@ class DashboardProvider extends ChangeNotifier {
         status: violation.status,
       );
 
+<<<<<<< HEAD
+=======
+      // Bildirim gönder (uyarı veya ihlal durumlarında)
+      if (_isNotificationsEnabled() &&
+          violation.status != CatStatus.guvenli) {
+        _notificationService.showViolationNotification(
+          catName: catName,
+          zoneName: violation.zoneName,
+          rssiValue: violation.rssiValue,
+        );
+      }
+
+>>>>>>> 184ff44f924bd06e13a586a090c5eb8a61f31d0c
       _rebuildLiveCats();
     } catch (e) {
       debugPrint('DashboardProvider._handleNewViolation hata: $e');
