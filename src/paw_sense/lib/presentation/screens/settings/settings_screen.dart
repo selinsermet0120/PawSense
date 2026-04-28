@@ -162,8 +162,18 @@ class SettingsScreen extends StatelessWidget {
                           ),
                         );
                         if (confirm == true && context.mounted) {
-                          await auth.signOut();
-                          if (context.mounted) Navigator.pop(context);
+                          final ok = await auth.signOut();
+                          if (!context.mounted) return;
+                          if (ok) {
+                            Navigator.pop(context);
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(auth.errorMessage ?? 'Çıkış yapılamadı'),
+                                backgroundColor: AppColors.danger,
+                              ),
+                            );
+                          }
                         }
                       },
                     );

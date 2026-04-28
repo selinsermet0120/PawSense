@@ -1,6 +1,14 @@
 import '../../core/enums/deterrent_sound.dart';
 import '../../domain/entities/cat_profile.dart';
 
+int? _asIntOrNull(dynamic value) {
+  if (value == null) return null;
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  if (value is String) return int.tryParse(value);
+  return null;
+}
+
 class CatProfileModel extends CatProfile {
   const CatProfileModel({
     required super.id,
@@ -37,7 +45,7 @@ class CatProfileModel extends CatProfile {
           ? DeterrentSound.values[soundType]
           : DeterrentSound.bip,
       isActive: true,
-      rssiThreshold: (map['rssi_threshold'] as int?) ?? -55,
+      rssiThreshold: _asIntOrNull(map['rssi_threshold']) ?? -55,
     );
   }
 

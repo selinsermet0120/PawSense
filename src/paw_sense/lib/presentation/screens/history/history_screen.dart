@@ -7,6 +7,8 @@ import '../../providers/cat_provider.dart';
 import '../../providers/violation_provider.dart';
 import '../../widgets/history/violation_summary_card.dart';
 import '../../widgets/history/event_log_tile.dart';
+import '../../widgets/history/event_log_skeleton.dart';
+import '../../widgets/common/tap_scale.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -21,6 +23,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   void initState() {
     super.initState();
+    _selectedCatFilter = context.read<ViolationProvider>().selectedCatId;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ViolationProvider>().loadViolations();
     });
@@ -35,9 +38,32 @@ class _HistoryScreenState extends State<HistoryScreen> {
       ),
       body: Consumer2<ViolationProvider, CatProvider>(
         builder: (context, violationProvider, catProvider, _) {
+          // Hata varsa SnackBar göster
+          if (violationProvider.errorMessage != null) {
+            final msg = violationProvider.errorMessage!;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(msg),
+                  backgroundColor: AppColors.danger,
+                ),
+              );
+              violationProvider.clearError();
+            });
+          }
+
           if (violationProvider.isLoading) {
-            return const Center(
-              child: CircularProgressIndicator(color: AppColors.primary),
+            return ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.only(top: 16),
+              children: const [
+                EventLogSkeleton(),
+                EventLogSkeleton(),
+                EventLogSkeleton(),
+                EventLogSkeleton(),
+                EventLogSkeleton(),
+              ],
             );
           }
 
@@ -230,24 +256,36 @@ class _FilterChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(right: 8),
-      child: GestureDetector(
+      child: TapScale(
         onTap: onTap,
-        child: Container(
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
             color: isSelected ? AppColors.primary : AppColors.cardBackground,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(999),
             border: Border.all(
               color: isSelected
                   ? AppColors.primary
                   : AppColors.textSecondary.withValues(alpha: 0.3),
             ),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.28),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ]
+                : null,
           ),
           child: Text(
             label,
             style: AppTextStyles.label.copyWith(
               color: isSelected ? Colors.white : AppColors.textPrimary,
               fontSize: 13,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
+import 'tap_scale.dart';
 
 class PawCard extends StatelessWidget {
   final Widget child;
@@ -21,28 +22,28 @@ class PawCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: margin ?? const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        padding: padding ?? const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.cardBackground,
-          borderRadius: BorderRadius.circular(16),
-          border: borderColor != null
-              ? Border.all(color: borderColor!, width: borderWidth)
-              : null,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 12,
-              spreadRadius: 0,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        child: child,
+    final card = Container(
+      margin: margin ?? const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      padding: padding ?? const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.cardBackground,
+        borderRadius: BorderRadius.circular(18),
+        border: borderColor != null
+            ? Border.all(color: borderColor!, width: borderWidth)
+            : null,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 14,
+            spreadRadius: 0,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
+      child: child,
     );
+
+    if (onTap == null) return card;
+    return TapScale(onTap: onTap, child: card);
   }
 }

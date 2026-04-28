@@ -71,8 +71,29 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> signOut() async {
-    await _client.auth.signOut();
+  Future<bool> signOut() async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      await _client.auth.signOut();
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      final msg = e.toString().toLowerCase();
+      if (msg.contains('socket') ||
+          msg.contains('network') ||
+          msg.contains('failed host lookup') ||
+          msg.contains('timeout')) {
+        _errorMessage = 'Çıkış yapılamadı: internet bağlantınızı kontrol edin.';
+      } else {
+        _errorMessage = 'Çıkış yapılamadı: ${e.toString()}';
+      }
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
   }
 
   void clearError() {

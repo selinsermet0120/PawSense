@@ -30,7 +30,10 @@ class DashboardProvider extends ChangeNotifier {
 
   SystemMode _currentMode = SystemMode.tarama;
   bool _isLive = true;
+  bool _systemActive = false;
   List<LiveCatData> _liveCats = [];
+  bool _isLoading = false;
+  String? _errorMessage;
 
   /// Kedi ID → profil eşleştirmesi (CatProvider'dan güncellenir)
   Map<String, CatProfile> _catMap = {};
@@ -48,16 +51,39 @@ class DashboardProvider extends ChangeNotifier {
 
   SystemMode get currentMode => _currentMode;
   bool get isLive => _isLive;
+  bool get systemActive => _systemActive;
   List<LiveCatData> get liveCats => _liveCats;
+  bool get isLoading => _isLoading;
+  String? get errorMessage => _errorMessage;
+
+  void clearError() {
+    _errorMessage = null;
+  }
+
+  String _friendlyError(Object e, String prefix) {
+    final msg = e.toString().toLowerCase();
+    if (msg.contains('socket') ||
+        msg.contains('network') ||
+        msg.contains('failed host lookup') ||
+        msg.contains('timeout')) {
+      return '$prefix: internet bağlantınızı kontrol edin.';
+    }
+    return '$prefix: sunucu hatası.';
+  }
 
   /// CatProvider'dan kedi listesini güncelle ve kartları yeniden oluştur
   void updateCatMap(List<CatProfile> cats) {
     _catMap = {for (final cat in cats) cat.id: cat};
     _rebuildLiveCats();
+    // Yeni cat listesine göre son ihlalleri de tazele
+    loadLiveCats();
   }
 
   /// Supabase'den kedileri doğrudan yükle (user_id filtresi yok)
   Future<void> loadCats() async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
     try {
       final data = await _client.from('cats').select();
       _catMap = {};
@@ -73,8 +99,13 @@ class DashboardProvider extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint('DashboardProvider.loadCats hata: $e');
+      _errorMessage = _friendlyError(e, 'Anasayfa yüklenemedi');
     }
     _rebuildLiveCats();
+    // Cat map değiştiğinde violation status'u da yenile
+    await loadLiveCats();
+    _isLoading = false;
+    notifyListeners();
   }
 
   /// Tüm kedileri göster, ihlal verisi varsa overlay et
@@ -148,6 +179,7 @@ class DashboardProvider extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint('DashboardProvider.loadLiveCats hata: $e');
+      _errorMessage = _friendlyError(e, 'Anlık veriler yüklenemedi');
     }
 
     _rebuildLiveCats();
@@ -157,7 +189,12 @@ class DashboardProvider extends ChangeNotifier {
   Future<void> loadSystemMode() async {
     try {
       final data = await _client.from('room_units').select('status');
-      if (data.isEmpty) return;
+      if (data.isEmpty) {
+        _systemActive = false;
+        _currentMode = SystemMode.bekle;
+        notifyListeners();
+        return;
+      }
 
       bool hasActive = false;
       bool hasCooldown = false;
@@ -175,6 +212,7 @@ class DashboardProvider extends ChangeNotifier {
       } else {
         _currentMode = SystemMode.bekle;
       }
+      _systemActive = hasActive || hasCooldown;
       notifyListeners();
     } catch (e) {
       debugPrint('DashboardProvider.loadSystemMode hata: $e');

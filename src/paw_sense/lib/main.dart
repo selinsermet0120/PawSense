@@ -1,3 +1,6 @@
+import 'dart:developer' as developer;
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
@@ -26,11 +29,28 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('tr_TR', null);
 
-  // Supabase başlat
-  await SupabaseDatasource.initialize();
+  // Supabase başlat — tüm bağlantı hatalarını detaylı logla.
+  // Kritik bağlantı hatasında crash yerine kullanıcıya bilgilendirici ekran göster.
+  try {
+    await SupabaseDatasource.initialize();
+  } catch (e, st) {
+    developer.log(
+      '❌ Supabase başlatma sırasında kritik hata oluştu.',
+      name: 'main',
+      error: e,
+      stackTrace: st,
+      level: 1200,
+    );
+    if (kDebugMode) {
+      debugPrint('[main][FATAL] Supabase başlatma hatası: $e');
+      debugPrint(st.toString());
+    }
+    runApp(_SupabaseInitErrorApp(error: e));
+    return;
+  }
 
-  // Settings'i yükle
-  final settingsProvider = SettingsProvider();
+  // Settings'i yükle (Supabase client ile — kullanıcı metadata'sından da okur)
+  final settingsProvider = SettingsProvider(client: SupabaseDatasource.client);
   await settingsProvider.load();
 
   // Bildirim servisini başlat
@@ -115,4 +135,70 @@ Future<void> main() async {
       ),
     ),
   );
+}
+
+String _supabaseFriendlyError(Object e) {
+  final msg = e.toString().toLowerCase();
+  if (msg.contains('socket') ||
+      msg.contains('network') ||
+      msg.contains('failed host lookup') ||
+      msg.contains('timeout') ||
+      msg.contains('connection')) {
+    return 'Sunucuya ulaşılamıyor. İnternet bağlantınızı kontrol edip tekrar deneyin.';
+  }
+  if (msg.contains('.env') || msg.contains('supabase_url') || msg.contains('supabase_anon_key')) {
+    return 'Yapılandırma eksik: Supabase URL veya anahtarı bulunamadı.';
+  }
+  return 'Sunucu başlatılamadı. Lütfen daha sonra tekrar deneyin.';
+}
+
+class _SupabaseInitErrorApp extends StatelessWidget {
+  final Object error;
+  const _SupabaseInitErrorApp({required this.error});
+
+  @override
+  Widget build(BuildContext context) {
+    final message = _supabaseFriendlyError(error);
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        backgroundColor: const Color(0xFFEBF0EF),
+        body: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.cloud_off_outlined,
+                      size: 64, color: Color(0xFFB07A4E)),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'PawSense bağlantı kuramadı',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    message,
+                    style: const TextStyle(fontSize: 14, color: Colors.black87),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Tekrar Dene'),
+                    onPressed: () => main(),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

@@ -3,10 +3,11 @@ import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../providers/dashboard_provider.dart';
-import '../../widgets/common/status_badge.dart';
-import '../../widgets/dashboard/system_mode_card.dart';
+import '../../widgets/common/live_badge.dart';
+import '../../widgets/common/shimmer_box.dart';
 import '../../widgets/dashboard/live_cat_card.dart';
 import '../../widgets/dashboard/quick_action_card.dart';
+import '../../widgets/dashboard/system_mode_card.dart';
 
 class DashboardScreen extends StatelessWidget {
   final VoidCallback? onNavigateToHistory;
@@ -44,79 +45,106 @@ class DashboardScreen extends StatelessWidget {
       ),
       body: Consumer<DashboardProvider>(
         builder: (context, dashboard, _) {
-          return SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 4),
-
-                // Sistem Modu
-                const SystemModeCard(),
-
-                const SizedBox(height: 20),
-
-                // Aktif İhlal Kontrolü başlığı
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    children: [
-                      Text(
-                        'Aktif İhlal Kontrolü',
-                        style: AppTextStyles.headlineSmall.copyWith(fontSize: 17),
-                      ),
-                      const SizedBox(width: 8),
-                      const StatusBadge(
-                        label: 'CANLI',
-                        color: Colors.white,
-                        backgroundColor: AppColors.danger,
-                        fontSize: 10,
-                      ),
-                    ],
-                  ),
+          if (dashboard.errorMessage != null) {
+            final msg = dashboard.errorMessage!;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(msg),
+                  backgroundColor: AppColors.danger,
                 ),
+              );
+              dashboard.clearError();
+            });
+          }
 
-                const SizedBox(height: 10),
+          final bool showSkeletons =
+              dashboard.isLoading && dashboard.liveCats.isEmpty;
 
-                // Canlı kedi listesi
-                if (dashboard.liveCats.isEmpty)
-                  _buildEmptyState()
-                else
-                  ...dashboard.liveCats.map((cat) {
-                    return LiveCatCard(
-                      catName: cat.catName,
-                      zoneName: cat.zoneName,
-                      rssi: cat.rssi,
-                      status: cat.status,
-                    );
-                  }),
+          return RefreshIndicator(
+            color: AppColors.primary,
+            onRefresh: () async {
+              await dashboard.loadCats();
+              await dashboard.loadSystemMode();
+            },
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 4),
 
-                const SizedBox(height: 20),
+                  const SystemModeCard(),
 
-                // Hızlı işlem kartları
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  child: Row(
-                    children: [
-                      QuickActionCard(
-                        icon: Icons.assignment_outlined,
-                        title: 'İhlal Kaydı',
-                        subtitle: 'Son 24 saat analizi',
-                        iconBackgroundColor: AppColors.secondary,
-                        onTap: onNavigateToHistory,
-                      ),
-                      QuickActionCard(
-                        icon: Icons.tune,
-                        title: 'Ayarlar',
-                        subtitle: 'Hassasiyet modları',
-                        iconBackgroundColor: AppColors.tertiary,
-                        onTap: onOpenSettings,
-                      ),
-                    ],
+                  const SizedBox(height: 16),
+
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Aktif İhlal Kontrolü',
+                            style: AppTextStyles.headlineSmall.copyWith(
+                              fontSize: 17,
+                            ),
+                          ),
+                        ),
+                        const LiveBadge(),
+                      ],
+                    ),
                   ),
-                ),
 
-                const SizedBox(height: 24),
-              ],
+                  const SizedBox(height: 10),
+
+                  if (showSkeletons)
+                    Column(
+                      children: const [
+                        CatCardSkeleton(),
+                        CatCardSkeleton(),
+                        CatCardSkeleton(),
+                      ],
+                    )
+                  else if (dashboard.liveCats.isEmpty)
+                    _buildEmptyState()
+                  else
+                    ...dashboard.liveCats.map((cat) {
+                      return LiveCatCard(
+                        catName: cat.catName,
+                        zoneName: cat.zoneName,
+                        rssi: cat.rssi,
+                        status: cat.status,
+                      );
+                    }),
+
+                  const SizedBox(height: 20),
+
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: Row(
+                      children: [
+                        QuickActionCard(
+                          icon: Icons.assignment_outlined,
+                          title: 'İhlal Kaydı',
+                          subtitle: 'Son 24 saat analizi',
+                          iconBackgroundColor: AppColors.secondary,
+                          onTap: onNavigateToHistory,
+                        ),
+                        QuickActionCard(
+                          icon: Icons.tune,
+                          title: 'Ayarlar',
+                          subtitle: 'Hassasiyet modları',
+                          iconBackgroundColor: AppColors.tertiary,
+                          onTap: onOpenSettings,
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+                ],
+              ),
             ),
           );
         },
@@ -138,7 +166,8 @@ class DashboardScreen extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               'Henüz kedi eklenmedi',
-              style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
+              style:
+                  AppTextStyles.body.copyWith(color: AppColors.textSecondary),
             ),
             const SizedBox(height: 4),
             const Text(

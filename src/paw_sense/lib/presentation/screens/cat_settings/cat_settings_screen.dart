@@ -1,8 +1,8 @@
-import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:uuid/uuid.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/enums/deterrent_sound.dart';
@@ -12,8 +12,6 @@ import '../../providers/violation_provider.dart';
 import '../../widgets/common/cat_avatar.dart';
 import '../../widgets/cat_settings/beacon_section.dart';
 import '../../widgets/cat_settings/behavior_analysis_section.dart';
-import '../../widgets/cat_settings/sensitivity_section.dart';
-import '../../widgets/cat_settings/sound_library_section.dart';
 
 class CatSettingsScreen extends StatefulWidget {
   const CatSettingsScreen({super.key});
@@ -52,6 +50,21 @@ class _CatSettingsScreenState extends State<CatSettingsScreen> {
       ),
       body: Consumer2<CatProvider, ViolationProvider>(
         builder: (context, catProvider, violationProvider, _) {
+          // Hata varsa SnackBar göster
+          if (catProvider.errorMessage != null) {
+            final msg = catProvider.errorMessage!;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(msg),
+                  backgroundColor: AppColors.danger,
+                ),
+              );
+              catProvider.clearError();
+            });
+          }
+
           if (catProvider.isLoading) {
             return const Center(
               child: CircularProgressIndicator(color: AppColors.primary),
@@ -78,10 +91,10 @@ class _CatSettingsScreenState extends State<CatSettingsScreen> {
 
                 // Kedi seçim çipsleri
                 SizedBox(
-                  height: 42,
+                  height: 52,
                   child: ListView.builder(
                     scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                     itemCount: catProvider.cats.length,
                     itemBuilder: (context, index) {
                       final isSelected = _selectedCatIndex == index;
@@ -91,10 +104,10 @@ class _CatSettingsScreenState extends State<CatSettingsScreen> {
                         child: GestureDetector(
                           onTap: () => setState(() => _selectedCatIndex = index),
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                             decoration: BoxDecoration(
                               color: isSelected ? AppColors.primary : Colors.white,
-                              borderRadius: BorderRadius.circular(20),
+                              borderRadius: BorderRadius.circular(22),
                               border: Border.all(
                                 color: isSelected
                                     ? AppColors.primary
@@ -113,14 +126,23 @@ class _CatSettingsScreenState extends State<CatSettingsScreen> {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                CatAvatar(name: c.name, radius: 12),
-                                const SizedBox(width: 6),
-                                Text(
-                                  c.name,
-                                  style: TextStyle(
-                                    color: isSelected ? Colors.white : AppColors.textPrimary,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 13,
+                                CatAvatar(
+                                  name: c.name,
+                                  imagePath: c.avatarPath,
+                                  radius: 13,
+                                ),
+                                const SizedBox(width: 8),
+                                ConstrainedBox(
+                                  constraints: const BoxConstraints(maxWidth: 120),
+                                  child: Text(
+                                    c.name,
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                    style: TextStyle(
+                                      color: isSelected ? Colors.white : AppColors.textPrimary,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -135,38 +157,34 @@ class _CatSettingsScreenState extends State<CatSettingsScreen> {
                 const SizedBox(height: 20),
 
                 // Profil alanı
-                _buildProfileHeader(cat),
+                _buildProfileHeader(cat, catProvider),
 
                 const SizedBox(height: 20),
 
                 BeaconSection(
                   beaconId: cat.beaconId.isNotEmpty ? cat.beaconId : null,
-                  onBeaconIdChanged: (newId) {
+                  onBeaconIdChanged: (newId) async {
+                    final messenger = ScaffoldMessenger.of(context);
                     final updated = cat.copyWith(beaconId: newId);
-                    catProvider.cats[_selectedCatIndex] = updated;
-                    setState(() {});
-                  },
-                ),
-
-                const SizedBox(height: 12),
-
-                SensitivitySection(
-                  rssiThreshold: cat.rssiThreshold,
-                  onChanged: (value) {
-                    final updated = cat.copyWith(rssiThreshold: value);
-                    catProvider.cats[_selectedCatIndex] = updated;
-                    setState(() {});
-                  },
-                ),
-
-                const SizedBox(height: 12),
-
-                SoundLibrarySection(
-                  selectedSound: cat.deterrentSound,
-                  onSoundSelected: (sound) {
-                    final updated = cat.copyWith(deterrentSound: sound);
-                    catProvider.cats[_selectedCatIndex] = updated;
-                    setState(() {});
+                    try {
+                      await catProvider.updateCat(cat: updated);
+                      messenger.showSnackBar(
+                        SnackBar(
+                          content: Text('Beacon ID güncellendi: $newId'),
+                          backgroundColor: AppColors.safe,
+                        ),
+                      );
+                    } catch (_) {
+                      messenger.showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            catProvider.errorMessage ??
+                                'Beacon ID güncellenemedi',
+                          ),
+                          backgroundColor: AppColors.danger,
+                        ),
+                      );
+                    }
                   },
                 ),
 
@@ -183,28 +201,68 @@ class _CatSettingsScreenState extends State<CatSettingsScreen> {
     );
   }
 
-  Widget _buildProfileHeader(CatProfile cat) {
+  Widget _buildProfileHeader(CatProfile cat, CatProvider catProvider) {
     return Column(
       children: [
-        Container(
-          padding: const EdgeInsets.all(5),
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: AppColors.primary.withValues(alpha: 0.25),
-              width: 3,
+        Stack(
+          alignment: Alignment.topRight,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(5),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: AppColors.primary.withValues(alpha: 0.25),
+                  width: 3,
+                ),
+              ),
+              child: CatAvatar(
+                name: cat.name,
+                imagePath: cat.avatarPath,
+                radius: 52,
+                backgroundColor: AppColors.secondary.withValues(alpha: 0.3),
+              ),
             ),
-          ),
-          child: CatAvatar(
-            name: cat.name,
-            imagePath: cat.avatarPath,
-            radius: 52,
-            backgroundColor: AppColors.secondary.withValues(alpha: 0.3),
-          ),
+          ],
         ),
         const SizedBox(height: 14),
-        Text(cat.name, style: AppTextStyles.headline.copyWith(fontSize: 24)),
-        const SizedBox(height: 4),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(cat.name, style: AppTextStyles.headline.copyWith(fontSize: 24)),
+            const SizedBox(width: 4),
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert, size: 20, color: AppColors.textSecondary),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              onSelected: (value) {
+                if (value == 'edit') {
+                  _showEditCatDialog(context, catProvider, cat);
+                } else if (value == 'delete') {
+                  _confirmDeleteCat(context, catProvider, cat);
+                }
+              },
+              itemBuilder: (ctx) => [
+                const PopupMenuItem(
+                  value: 'edit',
+                  child: Row(children: [
+                    Icon(Icons.edit_outlined, size: 18, color: AppColors.primary),
+                    SizedBox(width: 10),
+                    Text('Düzenle'),
+                  ]),
+                ),
+                const PopupMenuItem(
+                  value: 'delete',
+                  child: Row(children: [
+                    Icon(Icons.delete_outline, size: 18, color: AppColors.danger),
+                    SizedBox(width: 10),
+                    Text('Sil', style: TextStyle(color: AppColors.danger)),
+                  ]),
+                ),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 2),
         Text(
           'Evcil Dostunuzun Akıllı Güvenlik Ayarları',
           style: AppTextStyles.bodySmall.copyWith(fontSize: 13),
@@ -212,6 +270,68 @@ class _CatSettingsScreenState extends State<CatSettingsScreen> {
         ),
       ],
     );
+  }
+
+  void _showEditCatDialog(
+    BuildContext context,
+    CatProvider catProvider,
+    CatProfile cat,
+  ) {
+    showDialog(
+      context: context,
+      builder: (ctx) => _AddCatDialog(catProvider: catProvider, existing: cat),
+    );
+  }
+
+  Future<void> _confirmDeleteCat(
+    BuildContext context,
+    CatProvider catProvider,
+    CatProfile cat,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Kediyi Sil'),
+        content: Text('"${cat.name}" kalıcı olarak silinecek. Emin misiniz?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('İptal'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.danger,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Sil'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true || !mounted) return;
+
+    try {
+      await catProvider.deleteCat(cat.id);
+      if (!mounted) return;
+      setState(() => _selectedCatIndex = 0);
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('${cat.name} silindi'),
+          backgroundColor: AppColors.safe,
+        ),
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(catProvider.errorMessage ?? 'Silme işlemi başarısız'),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+    }
   }
 
   Widget _buildEmptyState() {
@@ -248,7 +368,8 @@ class _CatSettingsScreenState extends State<CatSettingsScreen> {
 
 class _AddCatDialog extends StatefulWidget {
   final CatProvider catProvider;
-  const _AddCatDialog({required this.catProvider});
+  final CatProfile? existing;
+  const _AddCatDialog({required this.catProvider, this.existing});
 
   @override
   State<_AddCatDialog> createState() => _AddCatDialogState();
@@ -260,7 +381,19 @@ class _AddCatDialogState extends State<_AddCatDialog> {
   final _picker = ImagePicker();
 
   XFile? _pickedImage;
+  Uint8List? _pickedImageBytes;
   bool _isLoading = false;
+
+  bool get _isEdit => widget.existing != null;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.existing != null) {
+      _nameController.text = widget.existing!.name;
+      _beaconController.text = widget.existing!.beaconId;
+    }
+  }
 
   @override
   void dispose() {
@@ -271,7 +404,13 @@ class _AddCatDialogState extends State<_AddCatDialog> {
 
   Future<void> _pickImage(ImageSource source) async {
     final image = await _picker.pickImage(source: source, imageQuality: 80, maxWidth: 512);
-    if (image != null) setState(() => _pickedImage = image);
+    if (image != null) {
+      final bytes = await image.readAsBytes();
+      setState(() {
+        _pickedImage = image;
+        _pickedImageBytes = bytes;
+      });
+    }
   }
 
   Future<void> _submit() async {
@@ -285,29 +424,56 @@ class _AddCatDialogState extends State<_AddCatDialog> {
 
     setState(() => _isLoading = true);
 
-    Uint8List? imageBytes;
-    String? fileName;
+    try {
+      Uint8List? imageBytes;
+      String? fileName;
 
-    if (_pickedImage != null) {
-      imageBytes = await File(_pickedImage!.path).readAsBytes();
-      fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
+      if (_pickedImage != null) {
+        imageBytes = _pickedImageBytes ?? await _pickedImage!.readAsBytes();
+        fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
+      }
+
+      if (_isEdit) {
+        final updated = widget.existing!.copyWith(
+          name: name,
+          beaconId: _beaconController.text.trim(),
+        );
+        await widget.catProvider.updateCat(
+          cat: updated,
+          imageBytes: imageBytes,
+          fileName: fileName,
+        );
+      } else {
+        final cat = CatProfile(
+          id: const Uuid().v4(),
+          name: name,
+          avatarPath: '',
+          beaconId: _beaconController.text.trim(),
+          deterrentSound: DeterrentSound.bip,
+        );
+
+        await widget.catProvider.addCatWithImage(
+          cat: cat,
+          imageBytes: imageBytes,
+          fileName: fileName,
+        );
+      }
+
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              widget.catProvider.errorMessage ??
+                  (_isEdit ? 'Kedi güncellenemedi: $e' : 'Kedi eklenemedi: $e'),
+            ),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+      }
     }
-
-    final cat = CatProfile(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      name: name,
-      avatarPath: '',
-      beaconId: _beaconController.text.trim(),
-      deterrentSound: DeterrentSound.bip,
-    );
-
-    await widget.catProvider.addCatWithImage(
-      cat: cat,
-      imageBytes: imageBytes,
-      fileName: fileName,
-    );
-
-    if (mounted) Navigator.pop(context);
   }
 
   @override
@@ -326,7 +492,7 @@ class _AddCatDialogState extends State<_AddCatDialog> {
             child: const Icon(Icons.pets, color: AppColors.primary, size: 18),
           ),
           const SizedBox(width: 10),
-          const Text('Yeni Kedi Ekle'),
+          Text(_isEdit ? 'Kediyi Düzenle' : 'Yeni Kedi Ekle'),
         ],
       ),
       content: SingleChildScrollView(
@@ -348,31 +514,44 @@ class _AddCatDialogState extends State<_AddCatDialog> {
                     strokeAlign: BorderSide.strokeAlignOutside,
                   ),
                 ),
-                child: _pickedImage != null
+                child: _pickedImageBytes != null
                     ? ClipOval(
-                        child: Image.file(
-                          File(_pickedImage!.path),
+                        child: Image.memory(
+                          _pickedImageBytes!,
                           fit: BoxFit.cover,
                           width: 90,
                           height: 90,
                         ),
                       )
-                    : Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.camera_alt_outlined,
-                              color: AppColors.primary.withValues(alpha: 0.7), size: 26),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Fotoğraf Ekle',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: AppColors.primary.withValues(alpha: 0.8),
-                              fontWeight: FontWeight.w600,
+                    : (_isEdit &&
+                            widget.existing!.avatarPath.isNotEmpty &&
+                            widget.existing!.avatarPath.startsWith('http'))
+                        ? ClipOval(
+                            child: Image.network(
+                              widget.existing!.avatarPath,
+                              fit: BoxFit.cover,
+                              width: 90,
+                              height: 90,
+                              errorBuilder: (_, _, _) =>
+                                  const Icon(Icons.pets, size: 32),
                             ),
+                          )
+                        : Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.camera_alt_outlined,
+                                  color: AppColors.primary.withValues(alpha: 0.7), size: 26),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Fotoğraf Ekle',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: AppColors.primary.withValues(alpha: 0.8),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
               ),
             ),
 
@@ -432,7 +611,7 @@ class _AddCatDialogState extends State<_AddCatDialog> {
                   height: 18,
                   child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                 )
-              : const Text('Ekle'),
+              : Text(_isEdit ? 'Kaydet' : 'Ekle'),
         ),
       ],
     );

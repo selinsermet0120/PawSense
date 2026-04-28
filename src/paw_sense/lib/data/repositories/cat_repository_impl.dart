@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -12,15 +13,32 @@ class CatRepositoryImpl implements CatRepository {
 
   Future<Map<String, int>> _getSoundTypes(List<String> catIds) async {
     if (catIds.isEmpty) return {};
-    final data = await _client
-        .from('cat_sounds')
-        .select('cat_id, sound_type')
-        .inFilter('cat_id', catIds);
-    final map = <String, int>{};
-    for (final row in data) {
-      map[row['cat_id'] as String] = row['sound_type'] as int;
+    try {
+      final data = await _client
+          .from('cat_sounds')
+          .select('cat_id, sound_type')
+          .inFilter('cat_id', catIds);
+      final map = <String, int>{};
+      for (final row in data) {
+        final catId = row['cat_id'] as String;
+        final raw = row['sound_type'];
+        final int? parsed = raw is int
+            ? raw
+            : (raw is num
+                ? raw.toInt()
+                : (raw is String ? int.tryParse(raw) : null));
+        if (parsed != null) {
+          map[catId] = parsed;
+        }
+      }
+      return map;
+    } catch (e) {
+      developer.log(
+        'cat_sounds okunamadı, varsayılan ses kullanılacak: $e',
+        name: 'CatRepository',
+      );
+      return {};
     }
-    return map;
   }
 
   @override
@@ -59,21 +77,74 @@ class CatRepositoryImpl implements CatRepository {
   @override
   Future<void> addCat(CatProfile cat) async {
     final model = CatProfileModel.fromEntity(cat);
-    await _client.from('cats').insert(model.toMap());
-    await _client.from('cat_sounds').insert({
-      'cat_id': cat.id,
-      'sound_type': cat.deterrentSound.index,
-    });
+    final basePayload = Map<String, dynamic>.from(model.toMap());
+    final userId = _client.auth.currentUser?.id;
+    final payloadWithUser = {
+      ...basePayload,
+      'user_id': ?userId,
+    };
+
+    try {
+      await _client.from('cats').insert(payloadWithUser);
+    } on PostgrestException catch (e) {
+      // Şema user_id kolonunu içermiyorsa, kolonsuz tekrar dene
+      final msg = e.message.toLowerCase();
+      final isUserIdSchemaIssue = msg.contains('user_id') &&
+          (msg.contains('column') ||
+              msg.contains('schema') ||
+              e.code == '42703' ||
+              e.code == 'PGRST204');
+      if (userId != null && isUserIdSchemaIssue) {
+        developer.log(
+          'cats tablosunda user_id yok, user_id olmadan ekleniyor: ${e.message}',
+          name: 'CatRepository',
+        );
+        await _client.from('cats').insert(basePayload);
+      } else {
+        rethrow;
+      }
+    }
+
+    try {
+      await _client.from('cat_sounds').insert({
+        'cat_id': cat.id,
+        'sound_type': cat.deterrentSound.index,
+      });
+    } catch (e) {
+      developer.log(
+        'cat_sounds insert hatası göz ardı edildi: $e',
+        name: 'CatRepository',
+      );
+    }
   }
 
   @override
   Future<void> updateCat(CatProfile cat) async {
     final model = CatProfileModel.fromEntity(cat);
     await _client.from('cats').update(model.toMap()).eq('id', cat.id);
-    await _client
-        .from('cat_sounds')
-        .update({'sound_type': cat.deterrentSound.index})
-        .eq('cat_id', cat.id);
+    try {
+      final existing = await _client
+          .from('cat_sounds')
+          .select('cat_id')
+          .eq('cat_id', cat.id)
+          .maybeSingle();
+      if (existing == null) {
+        await _client.from('cat_sounds').insert({
+          'cat_id': cat.id,
+          'sound_type': cat.deterrentSound.index,
+        });
+      } else {
+        await _client
+            .from('cat_sounds')
+            .update({'sound_type': cat.deterrentSound.index})
+            .eq('cat_id', cat.id);
+      }
+    } catch (e) {
+      developer.log(
+        'cat_sounds update hatası göz ardı edildi: $e',
+        name: 'CatRepository',
+      );
+    }
   }
 
   @override

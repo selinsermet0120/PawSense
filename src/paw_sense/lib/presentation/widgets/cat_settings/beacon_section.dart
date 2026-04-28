@@ -285,7 +285,7 @@ class _BeaconSectionState extends State<BeaconSection> {
 }
 
 /// Gerçek BLE tarama sonuçlarını gösteren bottom sheet
-class _BleScanSheet extends StatelessWidget {
+class _BleScanSheet extends StatefulWidget {
   final String? beaconId;
   final ValueChanged<String> onDeviceSelected;
 
@@ -295,11 +295,33 @@ class _BleScanSheet extends StatelessWidget {
   });
 
   @override
+  State<_BleScanSheet> createState() => _BleScanSheetState();
+}
+
+class _BleScanSheetState extends State<_BleScanSheet> {
+  final TextEditingController _searchController = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Consumer<BleProvider>(
       builder: (context, bleProvider, _) {
-        final devices = bleProvider.discoveredDevices;
+        final allDevices = bleProvider.discoveredDevices;
         final isScanning = bleProvider.isScanning;
+        final q = _query.trim().toLowerCase();
+        final devices = q.isEmpty
+            ? allDevices
+            : allDevices
+                .where((d) =>
+                    d.name.toLowerCase().contains(q) ||
+                    d.id.toLowerCase().contains(q))
+                .toList();
 
         return Padding(
           padding: const EdgeInsets.all(20),
@@ -342,13 +364,53 @@ class _BleScanSheet extends StatelessWidget {
               Text(
                 isScanning
                     ? 'Bluetooth cihazları aranıyor...'
-                    : '${devices.length} cihaz bulundu',
+                    : q.isEmpty
+                        ? '${allDevices.length} cihaz bulundu'
+                        : '${devices.length}/${allDevices.length} cihaz eşleşti',
                 style: AppTextStyles.bodySmall,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
+
+              // Arama alanı
+              TextField(
+                controller: _searchController,
+                onChanged: (value) => setState(() => _query = value),
+                textInputAction: TextInputAction.search,
+                style: AppTextStyles.body.copyWith(fontSize: 14),
+                decoration: InputDecoration(
+                  hintText: 'Cihaz adı veya ID ile ara',
+                  hintStyle: AppTextStyles.bodySmall,
+                  isDense: true,
+                  prefixIcon: const Icon(Icons.search,
+                      size: 18, color: AppColors.primary),
+                  suffixIcon: _query.isEmpty
+                      ? null
+                      : IconButton(
+                          icon: const Icon(Icons.close, size: 18),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() => _query = '');
+                          },
+                        ),
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 10),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: AppColors.textSecondary.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(
+                        color: AppColors.primary, width: 1.5),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
 
               // Cihaz listesi
-              if (devices.isEmpty && isScanning)
+              if (allDevices.isEmpty && isScanning)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 32),
                   child: Center(
@@ -364,7 +426,7 @@ class _BleScanSheet extends StatelessWidget {
                     ),
                   ),
                 )
-              else if (devices.isEmpty && !isScanning)
+              else if (allDevices.isEmpty && !isScanning)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 32),
                   child: Center(
@@ -397,6 +459,26 @@ class _BleScanSheet extends StatelessWidget {
                     ),
                   ),
                 )
+              else if (devices.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 24),
+                  child: Center(
+                    child: Column(
+                      children: [
+                        Icon(Icons.search_off,
+                            size: 36,
+                            color:
+                                AppColors.textSecondary.withValues(alpha: 0.5)),
+                        const SizedBox(height: 8),
+                        Text(
+                          '"$_query" ile eşleşen cihaz yok',
+                          style: AppTextStyles.bodySmall,
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                )
               else
                 ConstrainedBox(
                   constraints: BoxConstraints(
@@ -407,7 +489,7 @@ class _BleScanSheet extends StatelessWidget {
                     itemCount: devices.length,
                     itemBuilder: (context, index) {
                       final device = devices[index];
-                      final isCurrentDevice = beaconId == device.id;
+                      final isCurrentDevice = widget.beaconId == device.id;
                       return _buildDeviceCard(context, device, isCurrentDevice);
                     },
                   ),
@@ -416,7 +498,7 @@ class _BleScanSheet extends StatelessWidget {
               const SizedBox(height: 8),
 
               // Tekrar tara butonu (cihazlar varken)
-              if (devices.isNotEmpty && !isScanning)
+              if (allDevices.isNotEmpty && !isScanning)
                 Center(
                   child: TextButton.icon(
                     onPressed: () {
@@ -451,7 +533,7 @@ class _BleScanSheet extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: GestureDetector(
-        onTap: () => onDeviceSelected(device.id),
+        onTap: () => widget.onDeviceSelected(device.id),
         child: Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(

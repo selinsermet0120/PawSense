@@ -9,9 +9,15 @@ class ViolationProvider extends ChangeNotifier {
   List<ViolationRecord> _allViolations = [];
   String? _selectedCatId;
   bool _isLoading = false;
+  String? _errorMessage;
 
   ViolationProvider({required GetViolations getViolations})
       : _getViolations = getViolations;
+
+  String? get errorMessage => _errorMessage;
+  void clearError() {
+    _errorMessage = null;
+  }
 
   /// Filtrelenmiş liste (geçmiş ekranı için)
   List<ViolationRecord> get violations {
@@ -31,12 +37,14 @@ class ViolationProvider extends ChangeNotifier {
 
   Future<void> loadViolations() async {
     _isLoading = true;
+    _errorMessage = null;
     notifyListeners();
 
     try {
       _allViolations = await _getViolations(catId: null);
     } catch (e) {
       debugPrint('ViolationProvider.loadViolations hata: $e');
+      _errorMessage = _friendlyError(e, 'Geçmiş yüklenemedi');
       _allViolations = [];
     }
 
@@ -46,17 +54,30 @@ class ViolationProvider extends ChangeNotifier {
 
   Future<void> loadViolationsInRange(DateTime start, DateTime end) async {
     _isLoading = true;
+    _errorMessage = null;
     notifyListeners();
 
     try {
       _allViolations = await _getViolations.inRange(start, end);
     } catch (e) {
       debugPrint('ViolationProvider.loadViolationsInRange hata: $e');
+      _errorMessage = _friendlyError(e, 'Geçmiş yüklenemedi');
       _allViolations = [];
     }
 
     _isLoading = false;
     notifyListeners();
+  }
+
+  String _friendlyError(Object e, String prefix) {
+    final msg = e.toString().toLowerCase();
+    if (msg.contains('socket') ||
+        msg.contains('network') ||
+        msg.contains('failed host lookup') ||
+        msg.contains('timeout')) {
+      return '$prefix: internet bağlantınızı kontrol edin.';
+    }
+    return '$prefix: sunucu hatası.';
   }
 
   void filterByCat(String? catId) {

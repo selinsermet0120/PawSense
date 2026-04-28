@@ -49,32 +49,50 @@ class BleProvider extends ChangeNotifier {
 
   /// Bluetooth açık mı kontrol et, kapalıysa açılmasını iste
   Future<bool> _ensureBluetoothReady() async {
-    var adapterState = await FlutterBluePlus.adapterState.first;
-    if (adapterState != BluetoothAdapterState.on) {
-      if (Platform.isAndroid) {
-        try {
-          await FlutterBluePlus.turnOn();
-          // Bluetooth'un açılmasını bekle (max 5 saniye)
-          adapterState = await FlutterBluePlus.adapterState
-              .firstWhere((s) => s == BluetoothAdapterState.on)
-              .timeout(const Duration(seconds: 5));
-        } catch (_) {
+    try {
+      var adapterState = await FlutterBluePlus.adapterState.first
+          .timeout(const Duration(seconds: 3));
+      if (adapterState != BluetoothAdapterState.on) {
+        if (Platform.isAndroid) {
+          try {
+            await FlutterBluePlus.turnOn();
+            adapterState = await FlutterBluePlus.adapterState
+                .firstWhere((s) => s == BluetoothAdapterState.on)
+                .timeout(const Duration(seconds: 5));
+          } catch (_) {
+            return false;
+          }
+        } else {
           return false;
         }
-      } else {
-        return false;
       }
+      return true;
+    } catch (_) {
+      // Emülatör veya BLE desteklemeyen cihazda timeout/exception
+      return false;
     }
-    return true;
   }
 
   /// BLE taraması başlat ve bulunan cihazları güncelle
   Future<void> startBeaconScan() async {
-    if (kIsWeb) return;
+    if (kIsWeb) {
+      _runMockScan();
+      return;
+    }
 
-    // Bluetooth hazır mı kontrol et
+    // BLE fiziksel olarak destekleniyor mu?
+    final bleSupported = await _bleScanner.isAvailable();
+    if (!bleSupported) {
+      _runMockScan();
+      return;
+    }
+
+    // Bluetooth hazır mı kontrol et (emülatörde timeout → false)
     final ready = await _ensureBluetoothReady();
-    if (!ready) return;
+    if (!ready) {
+      _runMockScan();
+      return;
+    }
 
     _detectedDevices.clear();
     _isScanning = true;
@@ -116,6 +134,42 @@ class BleProvider extends ChangeNotifier {
 
     // Taramayı başlat
     await _startBleScan();
+  }
+
+  /// Emülatör / BLE desteklemeyen cihazlar için sahte tarama
+  void _runMockScan() {
+    _detectedDevices.clear();
+    _isScanning = true;
+    _unitState = enums.RoomUnitState.active;
+    notifyListeners();
+
+    const mockDevices = [
+      _MockDevice(id: 'PX-9921-A', name: 'PawSense-Luna', rssi: -48),
+      _MockDevice(id: 'PX-4412-B', name: 'PawSense-Mochi', rssi: -62),
+      _MockDevice(id: 'PX-7734-C', name: 'PawSense-Oliver', rssi: -73),
+    ];
+
+    for (int i = 0; i < mockDevices.length; i++) {
+      final device = mockDevices[i];
+      Future.delayed(Duration(milliseconds: 600 + i * 500), () {
+        if (!_isScanning) return;
+        _detectedDevices[device.id] = BleDeviceInfo(
+          id: device.id,
+          name: device.name,
+          rssi: device.rssi,
+          status: _evaluateRssi(device.rssi),
+        );
+        notifyListeners();
+      });
+    }
+
+    Future.delayed(const Duration(seconds: 3), () {
+      if (_isScanning) {
+        _isScanning = false;
+        _unitState = enums.RoomUnitState.idle;
+        notifyListeners();
+      }
+    });
   }
 
   /// BLE taramasını durdur
@@ -184,4 +238,16 @@ class BleProvider extends ChangeNotifier {
     _isScanningSubscription?.cancel();
     super.dispose();
   }
+}
+
+class _MockDevice {
+  final String id;
+  final String name;
+  final int rssi;
+
+  const _MockDevice({
+    required this.id,
+    required this.name,
+    required this.rssi,
+  });
 }
